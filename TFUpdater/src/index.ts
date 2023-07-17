@@ -18,7 +18,7 @@ export async function start() {
     if (matches.status !== 200) {
       console.error("cant fetch match");
     }
-    const subMatches: any[] = [1003695, 1031980];
+    const subMatches: any[] = [1003695, 1031980, 1048015];
 
     const leagues = matches.data.response;
     leagues.forEach((league) => {
