@@ -5,21 +5,147 @@ import {
   InlineQueryResult,
   InputTextMessageContent,
 } from "telegraf/types";
+import { Context, session } from "telegraf";
 import { getLeagues } from "./data";
+import { addChannel } from "../resources/channel/channel.functions";
+import { config } from "../config";
+import LocalSession from "telegraf-session-local";
 
-const token = "5939030613:AAHMCtOqapLbO1bhu4zx_FU7njjgapQGz84";
-const link = "https://starlit-dusk-e7dca0.netlify.app/";
-export const bot = new Telegraf(token);
+interface SessionData {
+  waitingForChannel?: boolean;
+}
+
+interface MyContext extends Context {
+  session: SessionData;
+}
+
+const token = config.botToken;
+export const bot = new Telegraf<MyContext>(token);
+const localSession = new LocalSession({ database: "session_db.json" });
+
+bot.use(localSession.middleware());
+
+bot.telegram.setMyCommands([
+  { command: "addchannel", description: "Add a channel" },
+]);
 
 bot.catch((err, ctx) => {
   console.error(`Error while handling update ${ctx.update.update_id}:`, err);
 });
 
-bot.start((ctx) =>
-  ctx.reply("Welcome", {
-    reply_markup: { keyboard: [[{ text: "Pl Live", web_app: { url: link } }]] },
-  })
-);
+bot.start((ctx) => ctx.reply("Welcome"));
+
+bot.command("addchannel", async (ctx) => {
+  ctx.session.waitingForChannel = true;
+
+  await ctx.reply(
+    "To add your channel, please follow these steps\n\n 1. Add me as an admin to your channel and grant me post rights.\n\n2. Send me your channel’s username or forward a post from your channel to me for verification.\n\nThis will allow me to verify that I have the necessary permissions to post on your channel. Thank you! 😊"
+  );
+});
+
+bot.on("message", async (ctx) => {
+  if (ctx.session.waitingForChannel) {
+    const msg = ctx.message;
+    let channelUsername: string | number;
+    if ("forward_from_chat" in msg) {
+      channelUsername = msg.forward_from_chat.id;
+      if (!channelUsername) {
+        await ctx.reply("Sorry, I couldn’t get the chat ID. Please try again!");
+        return;
+      }
+    } else if ("text" in msg) {
+      channelUsername = msg.text;
+
+      const usernameRegex = /(?:https?:\/\/)?(?:t\.me\/)?@?(\w+)/;
+      const match = channelUsername.match(usernameRegex);
+      if (match) {
+        channelUsername = "@" + match[1];
+      } else {
+        await ctx.reply("Sorry, I couldn't understand the channel username");
+        return;
+      }
+    } else return;
+
+    try {
+      const chat = await ctx.telegram.getChat(channelUsername);
+
+      if (chat.type !== "channel") {
+        await ctx.reply("Sorry, this is not a channel");
+        return;
+      }
+      const member = await ctx.telegram.getChatMember(
+        channelUsername,
+        ctx.botInfo.id
+      );
+      if (member.status === "administrator" && member.can_post_messages) {
+        const channel = await addChannel({
+          chatId: chat.id,
+          title: chat.title,
+          username: chat.username,
+          userChatId: ctx.chat.id,
+        });
+
+        await ctx.reply(
+          "Channel added successfully, you can now add notifcation subscription to your channel"
+        );
+        ctx.session.waitingForChannel = false;
+      } else {
+        const verifyKeyboard = Markup.inlineKeyboard([
+          { text: "Verify", callback_data: "verify_admin" },
+          { text: "Cancel", callback_data: "canceladdchannelrequest" },
+        ]);
+
+        await ctx.reply(
+          "Sorry, I am still not an admin. Please make sure you have granted me the right to post.",
+          verifyKeyboard
+        );
+        bot.action("verify_admin", async (ctx) => {
+          const member = await ctx.telegram.getChatMember(
+            channelUsername,
+            ctx.botInfo.id
+          );
+          if (member.status === "administrator" && member.can_post_messages) {
+            const channel = await addChannel({
+              chatId: chat.id,
+              title: chat.title,
+              username: chat.username,
+              userChatId: ctx.chat.id,
+            });
+            await ctx.editMessageText(
+              "Channel added successfully, you can now add notifcation subscription to your channel"
+            );
+            ctx.session.waitingForChannel = false;
+            return;
+          } else {
+            await ctx.editMessageText(
+              "Verification failed. Please make sure to give me the right to post.",
+              verifyKeyboard
+            );
+          }
+        });
+        bot.action("canceladdchannelrequest", async (ctx) => {
+          ctx.session.waitingForChannel = false;
+          await ctx.editMessageText("Request to add a new channel cancelled!");
+        });
+      }
+    } catch (error) {
+      if (
+        error.description === "Bad Request: chat not found" ||
+        error.description ===
+          "Forbidden: bot is not a member of the channel chat"
+      ) {
+        await ctx.reply(
+          "ohh, seems like i am not in your channel, please add me to your channel as an admin with post right and try again!"
+        );
+      } else {
+        await ctx.reply(
+          "Sorry, Request failed for some reason, Please try again!"
+        );
+        console.error(error);
+      }
+    }
+  }
+});
 
 bot.on("inline_query", async (ctx) => {
   try {
