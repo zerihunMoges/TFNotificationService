@@ -1,7 +1,7 @@
 import { connect, Connection } from "amqplib";
 import { config } from "../config";
 
-const MAX_CONNECTIONS = 19;
+let MAX_CONNECTIONS = 1;
 const connectionPool: Connection[] = [];
 
 export async function getConnection(): Promise<Connection> {
@@ -9,8 +9,9 @@ export async function getConnection(): Promise<Connection> {
     return connectionPool.pop()!;
   }
 
-  if (connectionPool.length < MAX_CONNECTIONS) {
+  if (MAX_CONNECTIONS > 0) {
     const connection = await connect(config.MQUrl);
+    MAX_CONNECTIONS -= 1;
     return connection;
   }
 

@@ -9,12 +9,44 @@ export interface IMatch extends IMatchEvent {
   fixture: {
     id: number;
     date: string;
+    status: {
+      short: string;
+    };
+  };
+  league: ILeague;
+  teams: ITeams;
+  goals: {
+    home: number | null;
+    away: number | null;
+  };
+  score: {
+    penalty: {
+      home: number | null;
+      away: number | null;
+    };
   };
 }
 export interface IEventTeam {
   id: number;
   name: string;
   logo: string;
+  winner: boolean;
+}
+export interface ILeague {
+  id: number;
+  name: string;
+  type: string;
+  logo: string;
+}
+export interface ITeams {
+  home: ITeam;
+  away: ITeam;
+}
+
+export interface ITeam {
+  id: number;
+  logo: string;
+  name: string;
   winner: boolean;
 }
 

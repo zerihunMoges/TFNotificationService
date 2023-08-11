@@ -10,6 +10,8 @@ import {
   ILineupTeam,
   ILineupCoach,
   ILineupPlayer,
+  ITeams,
+  ITeam,
 } from "./match-event.type";
 
 const EventTeamSchema = new Schema<IEventTeam>({
@@ -17,6 +19,18 @@ const EventTeamSchema = new Schema<IEventTeam>({
   name: String,
   logo: String,
   winner: Boolean,
+});
+
+const TeamSchema = new Schema<ITeam>({
+  id: Number,
+  logo: String,
+  name: String,
+  winner: Boolean,
+});
+
+const TeamsSchema = new Schema<ITeams>({
+  home: TeamSchema,
+  away: TeamSchema,
 });
 
 const TimeSchema = new Schema<ITime>({
@@ -86,6 +100,7 @@ const LineupSchema = new Schema<ILineup>({
 
 const MatchEventSchema = new mongoose.Schema({
   matchId: Number,
+  teams: TeamSchema,
   events: [EventSchema],
   lineups: [LineupSchema],
 });
