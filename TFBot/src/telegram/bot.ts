@@ -2,7 +2,6 @@ import { Telegraf, Markup, Scenes, Context, session } from "telegraf";
 import { InlineKeyboardMarkup, InlineQueryResult } from "telegraf/types";
 import { addChannel } from "../resources/channel/channel.functions";
 import { config } from "../config";
-import LocalSession from "telegraf-session-local";
 import {
   extractQuery,
   handleClubsQuery,
@@ -14,7 +13,7 @@ import {
   ISubscription,
 } from "../resources/clubs/subscription.model";
 import { getClub, getLeague, getLeagues } from "./botservice";
-
+const LocalSession = require("telegraf-session-local");
 interface SessionData {
   waitingForChannel?: boolean;
 }
