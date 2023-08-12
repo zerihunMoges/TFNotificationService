@@ -28,7 +28,7 @@ export async function sendMessage(
       });
       sentMessage = await bot.telegram.editMessageText(
         chat_id,
-        sentMessage.message_id,
+        sentMessage.messageId,
         null,
         message
       );
