@@ -2,9 +2,9 @@ import mongoose from "mongoose";
 
 export interface INotification {
   eventId: string;
-  chatId: string;
+  chatId: string | number;
   type: string;
-  messageId: string;
+  messageId: number;
 }
 
 const NotificationSchema = new mongoose.Schema({
@@ -18,7 +18,7 @@ const NotificationSchema = new mongoose.Schema({
   },
 
   messageId: {
-    type: String,
+    type: Number,
     required: true,
   },
   type: {
