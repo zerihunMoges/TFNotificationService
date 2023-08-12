@@ -5,6 +5,6 @@ export const config = {
   MQUrl: process.env.MQURL,
   port: process.env.PORT || "5001",
   clientUrl:
-    process.env.CLIENTURL || "http://192.168.43.186:8001/api/subscriptions",
+    process.env.CLIENTURL || "http://5.75.143.191:8001/api/subscriptions",
   mqConnection: null,
 };

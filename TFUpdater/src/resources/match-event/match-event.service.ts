@@ -104,11 +104,11 @@ export async function updateLineups(
   users: number[]
 ) {
   console.log("###### got lineup, should send if it is different");
-  if (JSON.stringify(lineups) !== JSON.stringify(prevLineups)) {
+  if (!prevLineups || (prevLineups.length === 0 && lineups.length === 2)) {
     console.log("########################### yeah i have sent it ");
     sendMessages(
       {
-        action: prevLineups && prevLineups.length > 0 ? "put" : "post",
+        action: "post",
         type: "lineup",
         data: lineups,
       },
@@ -150,7 +150,7 @@ export async function updateMatch(matchId: number) {
       expire_time &&
         setTimeout(
           () => updateMatch(matchId),
-          Math.max(new Date(expire_time).getTime() - date.getTime(), 60000)
+          Math.max(new Date(expire_time).getTime() - date.getTime(), 1000)
         );
     } else {
       await sendMessages(
