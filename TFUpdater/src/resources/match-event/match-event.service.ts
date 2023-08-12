@@ -106,7 +106,7 @@ export async function updateLineups(
   console.log("###### got lineup, should send if it is different");
   if ((!prevLineups || prevLineups.length === 0) && lineups.length === 2) {
     console.log("############################ yeah i have sent it ");
-    sendMessages(
+    await sendMessages(
       {
         action: "post",
         type: "lineup",
