@@ -22,13 +22,15 @@ export async function sendMessage(
         parse_mode: "HTML",
       });
     else if (action === "put") {
+      console.log("####### got edit request for", type, message);
       sentMessage = await Notification.findOne({
         type: type,
+        chatId: chat_id,
         eventId: updateId,
       });
       sentMessage = await bot.telegram.editMessageText(
         chat_id,
-        sentMessage.messageId,
+        parseInt(sentMessage.messageId),
         null,
         message
       );
