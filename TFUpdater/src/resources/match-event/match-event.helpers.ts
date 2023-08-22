@@ -1,6 +1,7 @@
 import { IEvent } from "./match-event.type";
 const overShortStatus = new Set(["FT", "AET", "PEN", "WO"]);
-
+const onField = new Set(["1H", "2H", "ET", "P", "INT", "LIVE"]);
+export const breakTime = new Set(["HT", "BT"]);
 export function isEventChanged(prevEvent: IEvent, event: IEvent) {
   const { team, player, assist, time, type, detail, comments } = prevEvent;
   const {
@@ -26,4 +27,8 @@ export function isEventChanged(prevEvent: IEvent, event: IEvent) {
 
 export function isMatchOver(status: string) {
   return overShortStatus.has(status);
+}
+
+export function isPlaying(status: string) {
+  return onField.has(status);
 }

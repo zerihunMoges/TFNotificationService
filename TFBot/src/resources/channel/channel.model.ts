@@ -73,14 +73,14 @@ const ChannelSchema = new mongoose.Schema({
         "<b>{time}' Goal for {team},</b>\n\n{hometeam} {homegoal} - {awaygoal} {awayteam}\n\n<b>Own Goal</b> - {player}",
 
       penalty:
-        "<b>{time}' Goal for {team},</b>\n\n{hometeam} {homegoal} - {awaygoal} {awayteam}\n\n<b>Goal</b> - {player} (Penalty)",
+        "<b>{time}' Goal for {team},</b>\n\n{hometeam} {homegoal} - {awaygoal} {awayteam}\n\n<b>Goal</b> - {player} (Penalty)\n{comment}",
 
       subst: "<b>{time}',</b>  Substitution by {team}, {in} replaces {out}.",
 
       "yellow card": "<b>{time}'</b>,  🟨 Yellow card, {player} ({team})",
 
       "red card": "<b>{time}'</b>,  🟥 Red card, {player} ({team})",
-
+      var: "<b>{time}'</b> 💻 Var, {team}. {detail} - {comment}",
       "missed penalty":
         "{time}+{extra}' Penalty Missed, {player} ({team})\n\n{hometeam} {homegoal} - {awaygoal} {awayteam}",
     },

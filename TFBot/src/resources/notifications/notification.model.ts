@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 export interface INotification {
   eventId: string;
   chatId: string | number;
+  matchId: string | number;
   type: string;
   messageId: number;
 }
@@ -16,6 +17,7 @@ const NotificationSchema = new mongoose.Schema({
     type: String || Number,
     required: true,
   },
+  matchId: { type: String || Number, required: true },
 
   messageId: {
     type: Number,

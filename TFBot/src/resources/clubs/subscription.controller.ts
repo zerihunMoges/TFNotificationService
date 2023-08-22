@@ -16,7 +16,7 @@ export async function getSubscriptions(
     if (club) {
       let clubSubscribers = await Subscription.find({
         subscriptionId: club,
-        type: club,
+        type: "club",
       });
       if (clubSubscribers) {
         clubSubscribers = clubSubscribers.filter(

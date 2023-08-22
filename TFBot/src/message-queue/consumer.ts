@@ -7,22 +7,25 @@ import { Teams } from "../types/team.type";
 import { Channel as TelegramChannel } from "../resources/channel/channel.model";
 import { Notification } from "../resources/notifications/notification.model";
 import { join } from "path";
+import { Action } from "../types/action.type";
+import { Subscription } from "../resources/clubs/subscription.model";
 
 export async function sendMessage(
   message: string,
   chat_id: string,
   type: string,
   updateId,
-  action: "post" | "put"
+  action: Action,
+  matchId
 ) {
   try {
     let sentMessage;
+
     if (action === "post")
       sentMessage = await bot.telegram.sendMessage(chat_id, message, {
         parse_mode: "HTML",
       });
     else if (action === "put") {
-      console.log("####### got edit request for", type, message);
       sentMessage = await Notification.findOne({
         type: type,
         chatId: chat_id,
@@ -32,10 +35,12 @@ export async function sendMessage(
         chat_id,
         parseInt(sentMessage.messageId),
         null,
-        message
+        message,
+        {
+          parse_mode: "HTML",
+        }
       );
     }
-
     await Notification.findOneAndUpdate(
       {
         type: type,
@@ -60,10 +65,10 @@ export async function sendMessage(
     ) {
       console.log("retry", err.response.parameters.retry_after);
       await new Promise((resolve) =>
-        setTimeout(resolve, err.response.parameters.retry_after)
+        setTimeout(resolve, err.response.parameters.retry_after * 1000)
       );
 
-      await sendMessage(message, chat_id, type, updateId, action);
+      await sendMessage(message, chat_id, type, updateId, action, matchId);
     }
   }
 }
@@ -74,25 +79,39 @@ export async function receiveUpdates() {
     const channel: Channel = await connection.createChannel();
 
     await channel.assertQueue(queue);
-    await channel.prefetch(1);
     await channel.consume(queue, async (msg) => {
       if (msg) {
         const { message, user } = JSON.parse(msg.content.toString());
+        console.log(message.type);
         let type: string;
         let data;
-        let action: "post" | "put";
+        let matchId: string | number;
+        let action: Action;
         let teams: Teams;
-        ({ teams, action, type, data } = message);
+        ({ teams, action, matchId, type, data } = message);
 
         const chat_id = user;
         const telegramChannel = await TelegramChannel.findOne({
           chatId: chat_id,
         });
+
         if (!telegramChannel) return;
-
+        console.log("got channel");
         let update = type;
+        let subscriptionStatus = true;
+        // data.type?.toLowerCase() === "goal"
+        //   ? subscription.goal
+        //   : data.type?.toLowerCase() === "subst"
+        //   ? subscription.substitution
+        //   : data.detail?.toLowerCase() === "yellow card"
+        //   ? subscription.yellowCard
+        //   : data.detail?.toLowerCase() === "red card"
+        //   ? subscription.redCard
+        //   : data.type?.toLowerCase() === "var"
+        //   ? subscription.var
+        //   : type.toLowerCase() === "lineup" && subscription.lineups;
 
-        if (type === "event") {
+        if (type === "event" && data) {
           data = data as Event;
           let eventFormattedMessage =
             telegramChannel.postFormats[data.detail?.toLowerCase()] ||
@@ -121,9 +140,16 @@ export async function receiveUpdates() {
           );
 
           if (update && update.length > 0) {
-            await sendMessage(update, chat_id, type, data?.id, action);
+            await sendMessage(
+              update + `\n\nhttp://t.me/TeleFootballBot/app`,
+              chat_id,
+              type,
+              data?.id,
+              action,
+              matchId
+            );
           }
-        } else if (type === "lineup") {
+        } else if (type === "lineup" && subscriptionStatus) {
           const [home, away] = data;
 
           const { team, formation, startXI, substitutes } = home;
@@ -140,8 +166,12 @@ export async function receiveUpdates() {
           const awayFormated =
             `${awayTeam?.name} StartXI: ${awayFormation && awayFormation}\n\n` +
             awayStartXI.map((player) => player.player.name).join("; ");
-          const message = `TeamNews 📋\n\n${homeFormated}\n\n${awayFormated}`;
-          await sendMessage(message, chat_id, type, data?.id, action);
+          const message =
+            `TeamNews 📋\n\n${homeFormated}\n\n${awayFormated}` +
+            `\n\nhttp://t.me/TeleFootballBot/app`;
+          await sendMessage(message, chat_id, type, data?.id, action, matchId);
+        } else if (type === "FT") {
+          const message = `FT:</b>\n\n${teams.home.name} ${data?.goals?.home} - ${data?.goals?.away} ${teams.away.name}\n`;
         }
 
         channel.ack(msg);

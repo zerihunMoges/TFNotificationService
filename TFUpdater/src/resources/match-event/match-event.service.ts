@@ -4,8 +4,9 @@ import { IEvent, ILineup, IMatch, IMatchEvent } from "./match-event.type";
 import { MatchEvent } from "./match-event.model";
 import { sendMessages } from "../../message-queue/producer";
 import { Subscribers } from "../../data/subscribers";
-import { isEventChanged, isMatchOver } from "./match-event.helpers";
+import { isEventChanged, isMatchOver, isPlaying } from "./match-event.helpers";
 import exp from "constants";
+import { Goals, MatchData, Score } from "../../response-types/match.type";
 
 export async function getMatch(matchId: number) {
   const res = await axios.get(`${config.baseUrl}/matches/${matchId}`);
@@ -50,9 +51,13 @@ export async function updateEvents(
   const { teams, events } = match || { events: [] };
   let homeScore = 0;
   let awayScore = 0;
-  let newEvents = [];
-
-  for (let _index = 0; _index < events.length; _index++) {
+  let homePenalty = 0;
+  let awayPenalty = 0;
+  for (
+    let _index = 0;
+    _index < Math.max(events.length, preEvents.length);
+    _index++
+  ) {
     const event = events[_index];
     const { team, player, assist, time, type, detail, comments } = event || {};
     if (
@@ -60,17 +65,42 @@ export async function updateEvents(
       detail.toLowerCase() !== "missed penalty"
     ) {
       {
-        team?.id === teams?.home?.id ? (homeScore += 1) : (awayScore += 1);
+        team?.id === teams?.home?.id
+          ? comments?.toLowerCase() !== "penalty shootout"
+            ? (homeScore += 1)
+            : (homePenalty += 1)
+          : comments?.toLowerCase() !== "penalty shootout"
+          ? (awayScore += 1)
+          : (awayPenalty += 1);
       }
     }
 
     if (_index >= preEvents.length) {
-      console.log("sent new event to", users, event.type);
       await sendMessages(
         {
           action: "post",
           teams: match.teams,
           type: "event",
+          matchId: match.fixture.id,
+          data: {
+            id: _index,
+            goals: { home: homeScore, away: awayScore },
+            penalty: { home: homePenalty, away: awayPenalty },
+            ...event,
+          },
+        },
+        users
+      );
+    } else if (
+      _index < events.length &&
+      isEventChanged(preEvents[_index], event)
+    ) {
+      await sendMessages(
+        {
+          action: "put",
+          teams: teams,
+          type: "event",
+          matchId: match.fixture.id,
           data: {
             id: _index,
             goals: { home: homeScore, away: awayScore },
@@ -79,13 +109,13 @@ export async function updateEvents(
         },
         users
       );
-    } else if (isEventChanged(preEvents[_index], event)) {
-      console.log("sent update event to", users, event.type);
+    } else if (_index >= events.length) {
       await sendMessages(
         {
-          action: "put",
+          action: "delete",
           teams: teams,
           type: "event",
+          matchId: match.fixture.id,
           data: {
             id: _index,
             goals: { home: homeScore, away: awayScore },
@@ -101,14 +131,14 @@ export async function updateEvents(
 export async function updateLineups(
   lineups: ILineup[],
   prevLineups: ILineup[],
-  users: number[]
+  users: number[],
+  matchId: string | number
 ) {
-  console.log("###### got lineup, should send if it is different");
   if ((!prevLineups || prevLineups.length === 0) && lineups.length === 2) {
-    console.log("############################ yeah i have sent it ");
     await sendMessages(
       {
         action: "post",
+        matchId: matchId,
         type: "lineup",
         data: lineups,
       },
@@ -117,22 +147,51 @@ export async function updateLineups(
   }
 }
 
+export async function updateBreaks(prevMatch: IMatch, match: IMatch, users) {
+  const prevMatchStatus = prevMatch.fixture.status.short;
+  const matchStatus = match.fixture.status.short;
+  const matchId = match.fixture.id;
+  const goals = match.goals;
+  const penalty = match.score.penalty;
+  const teams = match.teams;
+  if (!isPlaying(matchStatus) && prevMatchStatus !== matchStatus) {
+    await sendMessages(
+      {
+        action: "post",
+        matchId: matchId,
+        type: matchStatus,
+        data: {
+          goals: goals,
+          penalty: penalty,
+        },
+      },
+      users
+    );
+  }
+}
+
 export async function updateMatch(matchId: number) {
   try {
+    let prevMatch: IMatch = await MatchEvent.findOne({ matchId: matchId });
+    if (prevMatch && isMatchOver(prevMatch.fixture?.status?.short)) {
+      return;
+    }
+
     const matchRes = await getMatch(matchId);
     const { response, expire_time } = matchRes;
     const match: IMatch = response;
+    if (!response) return;
+
     const users = await getListenersID(
-      match?.teams?.home?.id,
-      match?.teams?.away?.id,
-      match?.league?.id,
-      match?.fixture?.id
+      match.teams.home.id,
+      match.teams.away.id,
+      match.league.id,
+      match.fixture.id
     );
 
-    let prevMatch: IMatch = await MatchEvent.findOne({ matchId: matchId });
     updateEvents(match, prevMatch, users);
-    updateLineups(match?.lineups, prevMatch?.lineups, users);
-
+    updateLineups(match?.lineups, prevMatch?.lineups, users, matchId);
+    updateBreaks(prevMatch, match, users);
     await MatchEvent.findOneAndUpdate(
       { matchId: matchId },
       {
@@ -143,32 +202,7 @@ export async function updateMatch(matchId: number) {
       },
       { upsert: true }
     );
-
-    const date = new Date();
-    const maxMatchLength = 150 * 60 * 1000;
-    if (!isMatchOver(match?.fixture?.status?.short)) {
-      expire_time &&
-        setTimeout(
-          () => updateMatch(matchId),
-          Math.max(new Date(expire_time).getTime() - date.getTime(), 1000)
-        );
-    } else {
-      await sendMessages(
-        {
-          action: "post",
-          teams: match?.teams,
-          type: "event",
-          data: {
-            goals: match?.goals,
-            penalty: match?.score?.penalty,
-            type: "FT",
-          },
-        },
-        users
-      );
-    }
   } catch (err) {
     console.error(err.message);
-    setTimeout(() => updateMatch(matchId), 60000);
   }
 }
