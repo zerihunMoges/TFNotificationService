@@ -2,6 +2,7 @@ import axios from "axios";
 import { config } from "./config";
 import { MatchData, MatchGroup } from "./response-types/match.type";
 import { updateMatch } from "./resources/match-event/match-event.service";
+import { Subscription } from "./response-types/subscription.type";
 
 export async function getLiveMatches(): Promise<MatchData[]> {
   const res = await axios.post(`${config.baseUrl}/matches?live=true`);
@@ -61,40 +62,45 @@ export async function getAllSubscriptions(): Promise<Subscription[]> {
 }
 
 export async function startWorker(matches = null, expire = null) {
-  const promisesArray: Promise<void>[] = [];
+  try {
+    const promisesArray: Promise<void>[] = [];
 
-  if (!matches || expire >= new Date()) {
-    matches = await getMatches();
-    const today = new Date();
-    const hour = 60;
-    today.setMinutes(today.getMinutes() + (hour % today.getMinutes()));
-    expire = today;
-  }
-  const subscriptions = await getAllSubscriptions();
-  for (const match of matches) {
-    if (
-      match &&
-      subscriptions.some(
-        (s) =>
-          (s.type === "club" &&
-            s.id?.toString() === match.teams?.home?.id?.toString()) ||
-          (s.type === "club" &&
-            s.id?.toString() === match.teams?.away?.id?.toString()) ||
-          (s.type === "league" &&
-            s.id?.toString() === match.league?.id?.toString())
-      )
-    ) {
-      const promise = updateMatch(match.fixture.id);
-      promisesArray.push(promise);
+    if (!matches || expire >= new Date()) {
+      matches = await getMatches();
+      const today = new Date();
+      const hour = 60;
+      today.setMinutes(today.getMinutes() + (hour % today.getMinutes()));
+      expire = today;
     }
-  }
+    const subscriptions = await getAllSubscriptions();
+    for (const match of matches) {
+      if (
+        match &&
+        subscriptions.some(
+          (s) =>
+            (s.type === "club" &&
+              s.notId?.toString() === match.teams?.home?.id?.toString()) ||
+            (s.type === "club" &&
+              s.notId?.toString() === match.teams?.away?.id?.toString()) ||
+            (s.type === "league" &&
+              s.notId?.toString() === match.league?.id?.toString())
+        )
+      ) {
+        const promise = updateMatch(match.fixture.id);
+        promisesArray.push(promise);
+      }
+    }
 
-  Promise.all(promisesArray)
-    .then(() => {
-      setTimeout(() => startWorker(matches, expire), 60000);
-    })
-    .catch((error) => {
-      console.error(error);
-      setTimeout(() => startWorker(matches, expire), 60000);
-    });
+    Promise.all(promisesArray)
+      .then(() => {
+        setTimeout(() => startWorker(matches, expire), 60000);
+      })
+      .catch((error) => {
+        console.error(error);
+        setTimeout(() => startWorker(matches, expire), 60000);
+      });
+  } catch (err) {
+    console.error("error occured in worker", err);
+    setTimeout(() => startWorker(matches, expire), 60000);
+  }
 }

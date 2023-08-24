@@ -3,10 +3,8 @@ import { config } from "../../config";
 import { IEvent, ILineup, IMatch, IMatchEvent } from "./match-event.type";
 import { MatchEvent } from "./match-event.model";
 import { sendMessages } from "../../message-queue/producer";
-import { Subscribers } from "../../data/subscribers";
 import { isEventChanged, isMatchOver, isPlaying } from "./match-event.helpers";
-import exp from "constants";
-import { Goals, MatchData, Score } from "../../response-types/match.type";
+import { Notification } from "../../response-types/subscription.type";
 
 export async function getMatch(matchId: number) {
   const res = await axios.get(`${config.baseUrl}/matches/${matchId}`);
@@ -18,7 +16,7 @@ export async function getMatch(matchId: number) {
   return res.data;
 }
 
-export async function getListenersID(
+export async function getListeners(
   homeId: number,
   awayId: number,
   leagueId: number,
@@ -36,16 +34,15 @@ export async function getListenersID(
     );
     throw new Error("Failed to fetch Listners");
   }
-  const listenersRes = res.data.response || [];
+  const listenersRes: Notification[] = res.data.response;
 
-  const listenersResID = listenersRes.map((s: any) => s.chatId);
-  return listenersResID;
+  return listenersRes;
 }
 
 export async function updateEvents(
   match: IMatch,
   prevMatchData: IMatch,
-  users: number[]
+  users: Notification[]
 ) {
   const { events: preEvents } = prevMatchData || { events: [] };
   const { teams, events } = match || { events: [] };
@@ -131,7 +128,7 @@ export async function updateEvents(
 export async function updateLineups(
   lineups: ILineup[],
   prevLineups: ILineup[],
-  users: number[],
+  users: Notification[],
   matchId: string | number
 ) {
   if ((!prevLineups || prevLineups.length === 0) && lineups.length === 2) {
@@ -147,7 +144,11 @@ export async function updateLineups(
   }
 }
 
-export async function updateBreaks(prevMatch: IMatch, match: IMatch, users) {
+export async function updateBreaks(
+  prevMatch: IMatch,
+  match: IMatch,
+  users: Notification[]
+) {
   const prevMatchStatus = prevMatch.fixture.status.short;
   const matchStatus = match.fixture.status.short;
   const matchId = match.fixture.id;
@@ -159,6 +160,7 @@ export async function updateBreaks(prevMatch: IMatch, match: IMatch, users) {
       {
         action: "post",
         matchId: matchId,
+        teams: teams,
         type: matchStatus,
         data: {
           goals: goals,
@@ -182,7 +184,7 @@ export async function updateMatch(matchId: number) {
     const match: IMatch = response;
     if (!response) return;
 
-    const users = await getListenersID(
+    const users = await getListeners(
       match.teams.home.id,
       match.teams.away.id,
       match.league.id,
@@ -192,16 +194,6 @@ export async function updateMatch(matchId: number) {
     updateEvents(match, prevMatch, users);
     updateLineups(match?.lineups, prevMatch?.lineups, users, matchId);
     updateBreaks(prevMatch, match, users);
-    await MatchEvent.findOneAndUpdate(
-      { matchId: matchId },
-      {
-        matchId,
-        teams: match.teams,
-        events: match.events,
-        lineups: match.lineups,
-      },
-      { upsert: true }
-    );
   } catch (err) {
     console.error(err.message);
   }

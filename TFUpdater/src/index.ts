@@ -11,8 +11,6 @@ import { startWorker } from "./worker";
 export async function start() {
   try {
     await connect();
-    const connection: Connection = await connectMQ(config.MQUrl);
-    config.mqConnection = connection;
     startWorker();
   } catch (err) {
     console.error(err);

@@ -1,26 +1,39 @@
 import { connect, Connection, Channel } from "amqplib";
-import { getConnection, releaseConnection } from "./connection-pool";
-import { config } from "../config";
+import { Notification } from "../response-types/subscription.type";
+import { channelPool } from "./channelPool";
 
-export async function sendMessages(message: any, users: any[]) {
-  console.log("message,", message, users);
-  let connection: Connection = config.mqConnection;
-
+async function sendMessage(channel: Channel, user: Notification, message) {
   try {
-    const channel: Channel = await connection.createChannel();
-    const queue = "updates";
-    await channel.assertQueue(queue);
+    const routingKey = user.targetType;
+    const userMessage = { message, user };
+    channel.publish(
+      "updates",
+      routingKey,
+      Buffer.from(JSON.stringify(userMessage)),
+      {
+        expiration: 3 * 60000,
+      }
+    );
+  } catch (err) {
+    console.error(
+      "error occurred sending message to user or channel: ",
+      user.user,
+      user.channel,
+      err
+    );
+  }
+}
+export async function sendMessages(message: any, users: Notification[]) {
+  let channel: Channel;
+  try {
+    channel = await channelPool.acquire();
 
     for (const user of users) {
-      const userMessage = { message, user };
-      channel.sendToQueue(queue, Buffer.from(JSON.stringify(userMessage)), {
-        expiration: 3 * 60000,
-      });
+      sendMessage(channel, user, message);
     }
-    await channel.close();
   } catch (err) {
-    console.error("error occured", err);
+    console.error("error occured while sending messages", err);
   } finally {
-    if (connection) releaseConnection(connection);
+    if (channel) channelPool.release(channel);
   }
 }

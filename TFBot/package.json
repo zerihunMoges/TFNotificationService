@@ -16,6 +16,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.1.4",
     "express": "^4.18.2",
+    "generic-pool": "^3.9.0",
     "mongoose": "^6.5.1",
     "telegraf": "github:telegraf/telegraf",
     "telegraf-session-local": "^2.1.1",
