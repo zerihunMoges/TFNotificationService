@@ -99,8 +99,13 @@ const LineupSchema = new Schema<ILineup>({
 });
 
 const MatchEventSchema = new mongoose.Schema({
-  matchId: Number,
-  teams: TeamSchema,
+  matchId: {
+    type: Number,
+    unique: true,
+    required: true,
+  },
+  status: String,
+  teams: TeamsSchema,
   events: [EventSchema],
   lineups: [LineupSchema],
 });

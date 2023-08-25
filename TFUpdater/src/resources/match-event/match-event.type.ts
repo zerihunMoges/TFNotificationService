@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 export interface IMatchEvent {
   matchId: number;
+  status: string;
   events: IEvent[];
   lineups: ILineup[];
 }

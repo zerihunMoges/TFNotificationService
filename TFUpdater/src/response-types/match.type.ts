@@ -83,7 +83,7 @@ export type Event = {
   assist: Assist;
   type: string;
   detail: string;
-  comments: null;
+  comments: string | null;
 };
 
 export type MatchData = {

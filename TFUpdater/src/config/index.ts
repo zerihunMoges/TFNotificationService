@@ -4,6 +4,6 @@ export const config = {
   mongoUrl: process.env.DATABASEURL,
   MQUrl: process.env.MQURL,
   port: process.env.PORT || "5001",
-  clientUrl: process.env.CLIENTURL || "http://127.0.0.1:8000/api/subscriptions",
+  clientUrl: process.env.CLIENTURL,
   mqConnection: null,
 };

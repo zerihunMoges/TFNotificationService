@@ -4,6 +4,7 @@ import { channelPool } from "./channelPool";
 
 async function sendMessage(channel: Channel, user: Notification, message) {
   try {
+    console.log("sending message");
     const routingKey = user.targetType;
     const userMessage = { message, user };
     channel.publish(

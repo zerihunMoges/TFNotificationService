@@ -73,10 +73,14 @@ export async function sendMessage(
   }
 }
 
-async function handleMessage(msg: ConsumeMessage, channel: Channel) {
+async function sendEventMessage(params: type) {}
+
+async function handleUserMessage(msg: ConsumeMessage, channel: Channel) {
   if (msg) {
-    const { message, user } = JSON.parse(msg.content.toString());
-    console.log(message.type);
+    const { message, user }: { message: any; user: Notification } = JSON.parse(
+      msg.content.toString()
+    );
+
     let type: string;
     let data;
     let matchId: string | number;
@@ -169,12 +173,14 @@ async function handleMessage(msg: ConsumeMessage, channel: Channel) {
   }
 }
 
-export async function consumeMessages(queue: "channel" | "club") {
+export async function consumeMessages(queue: "channel" | "user") {
   let channel: Channel;
   try {
     channel = await channelPool.acquire();
 
-    await channel.consume(queue, async (msg) => handleMessage(msg, channel));
+    await channel.consume(queue, async (msg) =>
+      handleUserMessage(msg, channel)
+    );
   } catch (err) {
     console.error("error occurred", err);
   } finally {

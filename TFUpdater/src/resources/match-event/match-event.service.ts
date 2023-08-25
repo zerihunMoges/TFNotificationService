@@ -5,6 +5,7 @@ import { MatchEvent } from "./match-event.model";
 import { sendMessages } from "../../message-queue/producer";
 import { isEventChanged, isMatchOver, isPlaying } from "./match-event.helpers";
 import { Notification } from "../../response-types/subscription.type";
+import { MatchData } from "../../response-types/match.type";
 
 export async function getMatch(matchId: number) {
   const res = await axios.get(`${config.baseUrl}/matches/${matchId}`);
@@ -40,88 +41,93 @@ export async function getListeners(
 }
 
 export async function updateEvents(
-  match: IMatch,
+  match: MatchData,
   prevMatchData: IMatch,
   users: Notification[]
 ) {
-  const { events: preEvents } = prevMatchData || { events: [] };
-  const { teams, events } = match || { events: [] };
-  let homeScore = 0;
-  let awayScore = 0;
-  let homePenalty = 0;
-  let awayPenalty = 0;
-  for (
-    let _index = 0;
-    _index < Math.max(events.length, preEvents.length);
-    _index++
-  ) {
-    const event = events[_index];
-    const { team, player, assist, time, type, detail, comments } = event || {};
-    if (
-      type.toLowerCase() === "goal" &&
-      detail.toLowerCase() !== "missed penalty"
+  try {
+    const { events: preEvents } = prevMatchData || { events: [] };
+    const { teams, events } = match || { events: [] };
+    let homeScore = 0;
+    let awayScore = 0;
+    let homePenalty = 0;
+    let awayPenalty = 0;
+    for (
+      let _index = 0;
+      _index < Math.max(events.length, preEvents.length);
+      _index++
     ) {
-      {
-        team?.id === teams?.home?.id
-          ? comments?.toLowerCase() !== "penalty shootout"
-            ? (homeScore += 1)
-            : (homePenalty += 1)
-          : comments?.toLowerCase() !== "penalty shootout"
-          ? (awayScore += 1)
-          : (awayPenalty += 1);
+      const event = events[_index];
+      const { team, player, assist, time, type, detail, comments } =
+        event || {};
+      if (
+        type.toLowerCase() === "goal" &&
+        detail.toLowerCase() !== "missed penalty"
+      ) {
+        {
+          team?.id === teams?.home?.id
+            ? comments?.toLowerCase() !== "penalty shootout"
+              ? (homeScore += 1)
+              : (homePenalty += 1)
+            : comments?.toLowerCase() !== "penalty shootout"
+            ? (awayScore += 1)
+            : (awayPenalty += 1);
+        }
+      }
+
+      if (_index >= preEvents.length) {
+        await sendMessages(
+          {
+            action: "post",
+            teams: match.teams,
+            type: "event",
+            matchId: match.fixture.id,
+            data: {
+              id: _index,
+              goals: { home: homeScore, away: awayScore },
+              penalty: { home: homePenalty, away: awayPenalty },
+              ...event,
+            },
+          },
+          users
+        );
+      } else if (
+        _index < events.length &&
+        isEventChanged(preEvents[_index], event)
+      ) {
+        await sendMessages(
+          {
+            action: "put",
+            teams: teams,
+            type: "event",
+            matchId: match.fixture.id,
+            data: {
+              id: _index,
+              goals: { home: homeScore, away: awayScore },
+              ...event,
+            },
+          },
+          users
+        );
+      } else if (_index >= events.length) {
+        await sendMessages(
+          {
+            action: "delete",
+            teams: teams,
+            type: "event",
+            matchId: match.fixture.id,
+            data: {
+              id: _index,
+              goals: { home: homeScore, away: awayScore },
+              ...event,
+            },
+          },
+          users
+        );
       }
     }
-
-    if (_index >= preEvents.length) {
-      await sendMessages(
-        {
-          action: "post",
-          teams: match.teams,
-          type: "event",
-          matchId: match.fixture.id,
-          data: {
-            id: _index,
-            goals: { home: homeScore, away: awayScore },
-            penalty: { home: homePenalty, away: awayPenalty },
-            ...event,
-          },
-        },
-        users
-      );
-    } else if (
-      _index < events.length &&
-      isEventChanged(preEvents[_index], event)
-    ) {
-      await sendMessages(
-        {
-          action: "put",
-          teams: teams,
-          type: "event",
-          matchId: match.fixture.id,
-          data: {
-            id: _index,
-            goals: { home: homeScore, away: awayScore },
-            ...event,
-          },
-        },
-        users
-      );
-    } else if (_index >= events.length) {
-      await sendMessages(
-        {
-          action: "delete",
-          teams: teams,
-          type: "event",
-          matchId: match.fixture.id,
-          data: {
-            id: _index,
-            goals: { home: homeScore, away: awayScore },
-            ...event,
-          },
-        },
-        users
-      );
-    }
+  } catch (err) {
+    console.error("error occured while updating events", err);
   }
 }
 
@@ -131,57 +137,66 @@ export async function updateLineups(
   users: Notification[],
   matchId: string | number
 ) {
-  if ((!prevLineups || prevLineups.length === 0) && lineups.length === 2) {
-    await sendMessages(
-      {
-        action: "post",
-        matchId: matchId,
-        type: "lineup",
-        data: lineups,
-      },
-      users
-    );
+  try {
+    if ((!prevLineups || prevLineups.length === 0) && lineups.length === 2) {
+      await sendMessages(
+        {
+          action: "post",
+          matchId: matchId,
+          type: "lineup",
+          data: lineups,
+        },
+        users
+      );
+    }
+  } catch (err) {
+    console.error("error occured updating lineups", err);
   }
 }
 
 export async function updateBreaks(
   prevMatch: IMatch,
-  match: IMatch,
+  match: MatchData,
   users: Notification[]
 ) {
-  const prevMatchStatus = prevMatch.fixture.status.short;
-  const matchStatus = match.fixture.status.short;
-  const matchId = match.fixture.id;
-  const goals = match.goals;
-  const penalty = match.score.penalty;
-  const teams = match.teams;
-  if (!isPlaying(matchStatus) && prevMatchStatus !== matchStatus) {
-    await sendMessages(
-      {
-        action: "post",
-        matchId: matchId,
-        teams: teams,
-        type: matchStatus,
-        data: {
-          goals: goals,
-          penalty: penalty,
+  try {
+    const prevMatchStatus = prevMatch?.fixture?.status?.short;
+    const matchStatus = match.fixture.status.short;
+    const matchId = match.fixture.id;
+    const goals = match.goals;
+    const penalty = match.score.penalty;
+    const teams = match.teams;
+    if (!isPlaying(matchStatus) && prevMatchStatus !== matchStatus) {
+      await sendMessages(
+        {
+          action: "post",
+          matchId: matchId,
+          teams: teams,
+          type: matchStatus,
+          data: {
+            goals: goals,
+            penalty: penalty,
+            statistics: match.statistics,
+          },
         },
-      },
-      users
-    );
+        users
+      );
+    }
+  } catch (err) {
+    console.error("error occured while updaiting breaks", err);
   }
 }
 
 export async function updateMatch(matchId: number) {
   try {
     let prevMatch: IMatch = await MatchEvent.findOne({ matchId: matchId });
-    if (prevMatch && isMatchOver(prevMatch.fixture?.status?.short)) {
+    if (prevMatch && isMatchOver(prevMatch.status)) {
       return;
     }
 
     const matchRes = await getMatch(matchId);
     const { response, expire_time } = matchRes;
-    const match: IMatch = response;
+    const match: MatchData = response;
     if (!response) return;
 
     const users = await getListeners(
@@ -191,9 +206,21 @@ export async function updateMatch(matchId: number) {
       match.fixture.id
     );
 
-    updateEvents(match, prevMatch, users);
-    updateLineups(match?.lineups, prevMatch?.lineups, users, matchId);
-    updateBreaks(prevMatch, match, users);
+    await updateEvents(match, prevMatch, users);
+    await updateLineups(match?.lineups, prevMatch?.lineups, users, matchId);
+    await updateBreaks(prevMatch, match, users);
+
+    await MatchEvent.findOneAndUpdate(
+      { matchId: matchId },
+      {
+        matchId: match.fixture.id,
+        status: match.fixture.status?.short,
+        events: match.events,
+        lineups: match.lineups,
+        teams: match.teams,
+      },
+      { upsert: true }
+    );
   } catch (err) {
     console.error(err.message);
   }
