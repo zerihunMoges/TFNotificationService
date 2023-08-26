@@ -57,12 +57,14 @@ export async function updateEvents(
       _index < Math.max(events.length, preEvents.length);
       _index++
     ) {
-      const event = events[_index];
+      let event: IEvent;
+
+      if (_index < events.length) event = events[_index];
       const { team, player, assist, time, type, detail, comments } =
         event || {};
       if (
-        type.toLowerCase() === "goal" &&
-        detail.toLowerCase() !== "missed penalty"
+        type?.toLowerCase() === "goal" &&
+        detail?.toLowerCase() !== "missed penalty"
       ) {
         {
           team?.id === teams?.home?.id
@@ -119,7 +121,6 @@ export async function updateEvents(
             data: {
               id: _index,
               goals: { home: homeScore, away: awayScore },
-              ...event,
             },
           },
           users
@@ -206,10 +207,6 @@ export async function updateMatch(matchId: number) {
       match.fixture.id
     );
 
-    await updateEvents(match, prevMatch, users);
-    await updateLineups(match?.lineups, prevMatch?.lineups, users, matchId);
-    await updateBreaks(prevMatch, match, users);
-
     await MatchEvent.findOneAndUpdate(
       { matchId: matchId },
       {
@@ -221,6 +218,9 @@ export async function updateMatch(matchId: number) {
       },
       { upsert: true }
     );
+    await updateEvents(match, prevMatch, users);
+    await updateLineups(match?.lineups, prevMatch?.lineups, users, matchId);
+    await updateBreaks(prevMatch, match, users);
   } catch (err) {
     console.error(err.message);
   }
