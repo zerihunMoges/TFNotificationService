@@ -161,7 +161,7 @@ export async function updateBreaks(
   users: Notification[]
 ) {
   try {
-    const prevMatchStatus = prevMatch?.fixture?.status?.short;
+    const prevMatchStatus = prevMatch?.status;
     const matchStatus = match.fixture.status.short;
     const matchId = match.fixture.id;
     const goals = match.goals;
