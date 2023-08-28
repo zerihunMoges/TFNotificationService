@@ -66,15 +66,13 @@ export async function updateEvents(
         type?.toLowerCase() === "goal" &&
         detail?.toLowerCase() !== "missed penalty"
       ) {
-        {
-          team?.id === teams?.home?.id
-            ? comments?.toLowerCase() !== "penalty shootout"
-              ? (homeScore += 1)
-              : (homePenalty += 1)
-            : comments?.toLowerCase() !== "penalty shootout"
-            ? (awayScore += 1)
-            : (awayPenalty += 1);
-        }
+        team?.id === teams?.home?.id
+          ? comments?.toLowerCase() !== "penalty shootout"
+            ? (homeScore += 1)
+            : (homePenalty += 1)
+          : comments?.toLowerCase() !== "penalty shootout"
+          ? (awayScore += 1)
+          : (awayPenalty += 1);
       }
 
       if (_index >= preEvents.length) {

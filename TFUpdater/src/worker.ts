@@ -62,6 +62,7 @@ export async function getAllSubscriptions(): Promise<Subscription[]> {
 }
 
 export async function startWorker(matches = null, expire = null) {
+  const start = new Date();
   try {
     const promisesArray: Promise<void>[] = [];
 
@@ -91,16 +92,13 @@ export async function startWorker(matches = null, expire = null) {
       }
     }
 
-    Promise.all(promisesArray)
-      .then(() => {
-        setTimeout(() => startWorker(matches, expire), 60000);
-      })
-      .catch((error) => {
-        console.error(error);
-        setTimeout(() => startWorker(matches, expire), 60000);
-      });
+    await Promise.all(promisesArray);
   } catch (err) {
     console.error("error occured in worker", err);
-    setTimeout(() => startWorker(matches, expire), 60000);
+  } finally {
+    const time = new Date();
+    const dif =
+      time.getSeconds() - start.getSeconds() < 60 ? 60 % time.getSeconds() : 1;
+    setTimeout(() => startWorker(matches, expire), dif * 1000);
   }
 }
