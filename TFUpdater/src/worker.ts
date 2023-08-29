@@ -62,19 +62,26 @@ export async function getAllSubscriptions(): Promise<Subscription[]> {
 }
 
 export async function startWorker(matches = null, expire = null) {
-  console.log("match", "expire", expire);
-  const start = new Date();
-  try {
-    const promisesArray: Promise<void>[] = [];
+  console.log("match:", matches, "expire:", expire);
 
+  const startTime = new Date();
+
+  try {
+    const promisesArray = [];
+
+    // If matches are not provided or the expiration time has passed, fetch new matches
     if (!matches || expire < new Date()) {
       matches = await getMatches();
+
+      // Set the expiration time to the next hour
       const today = new Date();
-      const hour = 60;
-      today.setMinutes(hour);
+      today.setMinutes(60);
       expire = today;
     }
+
+    // Get all subscriptions
     const subscriptions = await getAllSubscriptions();
+
     for (const match of matches) {
       if (
         match &&
@@ -88,20 +95,25 @@ export async function startWorker(matches = null, expire = null) {
               s.notId?.toString() === match.league?.id?.toString())
         )
       ) {
+        // Update the match and add the promise to the array
         const promise = updateMatch(match.fixture.id);
         promisesArray.push(promise);
       }
     }
 
+    // Wait for all promises to complete
     await Promise.all(promisesArray);
   } catch (err) {
-    console.error("error occured in worker", err);
+    console.error("Error occurred in worker:", err);
   } finally {
-    const time = new Date();
+    // Calculate the time difference and set the timeout accordingly
+    const currentTime = new Date();
+    const timeDifference = currentTime.getTime() - startTime.getTime();
+    const timeout = timeDifference >= 60000 ? 0 : 60000 - timeDifference;
 
-    const dif =
-      time.getTime() - start.getTime() >= 60000 ? 60 - time.getSeconds() : 1;
-    await new Promise((resolve) => setTimeout(resolve, dif * 1000));
-    startWorker(matches, expire);
+    // Wait for the specified time and then call the worker function again
+    setTimeout(() => {
+      startWorker(matches, expire);
+    }, timeout);
   }
 }
