@@ -61,10 +61,9 @@ export async function getAllSubscriptions(): Promise<Subscription[]> {
   return subscriptions;
 }
 
-export async function startWorker(matches: MatchData[]) {
+export async function startWorker(matches: MatchData[], subscriptions) {
   try {
     const promisesArray = [];
-    const subscriptions = await getAllSubscriptions();
 
     for (const match of matches) {
       if (
@@ -95,7 +94,6 @@ export async function scheduleWorker(updateSeconds: number = 60) {
   let expire: Date = null;
 
   while (true) {
-    console.log("match:", expire);
     //the next worker call should be on update time
     let startTime = new Date();
     let updateTime = new Date();
@@ -103,15 +101,20 @@ export async function scheduleWorker(updateSeconds: number = 60) {
       startTime.getSeconds() + getExpireSeconds(startTime, updateSeconds)
     );
 
-    if (!matches || expire < new Date()) {
-      matches = await getMatches();
+    try {
+      const subscriptions = await getAllSubscriptions();
+      if (!matches || expire < new Date()) {
+        matches = await getMatches();
 
-      // we want to fetch matches at the begining of every hour
-      const updateMinute = 60;
-      expire = new Date();
-      expire.setMinutes(updateMinute);
+        // we want to fetch matches at the begining of every hour
+        const updateMinute = 60;
+        expire = new Date();
+        expire.setMinutes(updateMinute);
+      }
+      await startWorker(matches, subscriptions);
+    } catch (err) {
+      console.error("error occured while scheduling worker", err);
     }
-    await startWorker(matches);
 
     const currentTime = new Date();
     const timeout =

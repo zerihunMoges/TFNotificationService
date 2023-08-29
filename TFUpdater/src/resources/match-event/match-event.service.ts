@@ -36,6 +36,13 @@ export async function getListeners(
     throw new Error("Failed to fetch Listners");
   }
   const listenersRes: Notification[] = res.data.response;
+  let unique = new Set();
+  listenersRes.filter((listener) => {
+    let id = `${listener.channel}-${listener.user}-${listener.targetType}`;
+    let isUnique = unique.has(id);
+    unique.add(id);
+    return isUnique;
+  });
 
   return listenersRes;
 }
