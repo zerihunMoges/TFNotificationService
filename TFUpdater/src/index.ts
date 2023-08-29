@@ -6,12 +6,12 @@ import { updateMatch } from "./resources/match-event/match-event.service";
 import { IMatch } from "./resources/match-event/match-event.type";
 import { connect } from "./db/db-setup";
 import { connect as connectMQ, Connection } from "amqplib";
-import { startWorker } from "./worker";
+import { scheduleWorker, startWorker } from "./worker";
 
 export async function start() {
   try {
     await connect();
-    startWorker();
+    scheduleWorker();
   } catch (err) {
     console.error(err);
   }
