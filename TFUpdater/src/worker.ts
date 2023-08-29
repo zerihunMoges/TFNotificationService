@@ -62,12 +62,12 @@ export async function getAllSubscriptions(): Promise<Subscription[]> {
 }
 
 export async function startWorker(matches = null, expire = null) {
-  console.log("matche", "expire", expire);
+  console.log("match", "expire", expire);
   const start = new Date();
   try {
     const promisesArray: Promise<void>[] = [];
 
-    if (!matches || expire >= new Date()) {
+    if (!matches || expire < new Date()) {
       matches = await getMatches();
       const today = new Date();
       const hour = 60;
