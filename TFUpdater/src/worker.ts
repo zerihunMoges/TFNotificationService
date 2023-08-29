@@ -61,17 +61,9 @@ export async function getAllSubscriptions(): Promise<Subscription[]> {
   return subscriptions;
 }
 
-export async function startWorker(matches = null, expire = null) {
-  console.log("match:", matches, "expire:", expire);
-
-  const startTime = new Date();
-
+export async function startWorker(matches: MatchData[]) {
   try {
     const promisesArray = [];
-
-    // If matches are not provided or the expiration time has passed, fetch new matches
-
-    // Get all subscriptions
     const subscriptions = await getAllSubscriptions();
 
     for (const match of matches) {
@@ -87,13 +79,11 @@ export async function startWorker(matches = null, expire = null) {
               s.notId?.toString() === match.league?.id?.toString())
         )
       ) {
-        // Update the match and add the promise to the array
         const promise = updateMatch(match.fixture.id);
         promisesArray.push(promise);
       }
     }
 
-    // Wait for all promises to complete
     await Promise.all(promisesArray);
   } catch (err) {
     console.error("Error occurred in worker:", err);
@@ -105,8 +95,9 @@ export async function scheduleWorker(updateSeconds: number = 60) {
   let expire: Date = null;
 
   while (true) {
+    console.log("match:", matches, expire);
+    //the next worker call should be on update time
     let startTime = new Date();
-    //the next worker call should be after this time
     let updateTime = new Date();
     updateTime.setSeconds(
       startTime.getSeconds() + getExpireSeconds(startTime, updateSeconds)
@@ -120,7 +111,7 @@ export async function scheduleWorker(updateSeconds: number = 60) {
       expire = new Date();
       expire.setMinutes(updateMinute);
     }
-    await startWorker();
+    await startWorker(matches);
 
     const currentTime = new Date();
     const timeout =
