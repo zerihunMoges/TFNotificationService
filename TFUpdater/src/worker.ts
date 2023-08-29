@@ -111,7 +111,7 @@ export async function scheduleWorker(updateSeconds: number = 60) {
         expire = new Date();
         expire.setMinutes(updateMinute);
       }
-      console.log("matches:", matches);
+
       await startWorker(matches, subscriptions);
     } catch (err) {
       console.error("error occured while scheduling worker", err);
