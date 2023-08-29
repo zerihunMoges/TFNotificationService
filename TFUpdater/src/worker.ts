@@ -98,8 +98,10 @@ export async function startWorker(matches = null, expire = null) {
     console.error("error occured in worker", err);
   } finally {
     const time = new Date();
+
     const dif =
       time.getTime() - start.getTime() >= 60000 ? 60 - time.getSeconds() : 1;
-    setTimeout(() => startWorker(matches, expire), dif * 1000);
+    await new Promise((resolve) => setTimeout(resolve, dif * 1000));
+    startWorker(matches, expire);
   }
 }
