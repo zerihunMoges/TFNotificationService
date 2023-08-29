@@ -71,7 +71,7 @@ export async function startWorker(matches = null, expire = null) {
       matches = await getMatches();
       const today = new Date();
       const hour = 60;
-      today.setMinutes(today.getMinutes() + (hour % today.getMinutes()));
+      today.setMinutes(today.getMinutes() + (today.getMinutes() % hour));
       expire = today;
     }
     const subscriptions = await getAllSubscriptions();
@@ -99,7 +99,7 @@ export async function startWorker(matches = null, expire = null) {
   } finally {
     const time = new Date();
     const dif =
-      time.getSeconds() - start.getSeconds() < 60 ? 60 % time.getSeconds() : 1;
+      time.getTime() - start.getTime() < 60000 ? time.getSeconds() % 60 : 1;
     setTimeout(() => startWorker(matches, expire), dif * 1000);
   }
 }
