@@ -95,7 +95,7 @@ export async function scheduleWorker(updateSeconds: number = 60) {
   let expire: Date = null;
 
   while (true) {
-    console.log("match:", matches, expire);
+    console.log("match:", expire);
     //the next worker call should be on update time
     let startTime = new Date();
     let updateTime = new Date();
