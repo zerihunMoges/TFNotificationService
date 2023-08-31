@@ -6,9 +6,22 @@ export interface Subscription {
 }
 
 export interface Notification {
-  user?: mongoose.Types.ObjectId;
-  channel?: mongoose.Types.ObjectId;
-  targetType: string;
+  _id: string;
+  user?: string;
+  channel?: string;
+  targetType: "channel" | "user";
   type: string;
   notId: string;
+  notificationSetting: NotificationSetting;
+}
+
+export interface NotificationSetting {
+  goal?: boolean;
+  redCard?: boolean;
+  var?: boolean;
+  yellowCard?: boolean;
+  lineups?: boolean;
+  substitution?: boolean;
+  break?: boolean;
+  FT?: boolean;
 }

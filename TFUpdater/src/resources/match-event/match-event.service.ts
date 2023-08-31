@@ -4,7 +4,10 @@ import { IEvent, ILineup, IMatch, IMatchEvent } from "./match-event.type";
 import { MatchEvent } from "./match-event.model";
 import { sendMessages } from "../../message-queue/producer";
 import { isEventChanged, isMatchOver, isPlaying } from "./match-event.helpers";
-import { Notification } from "../../response-types/subscription.type";
+import {
+  Notification,
+  NotificationSetting,
+} from "../../response-types/subscription.type";
 import { MatchData } from "../../response-types/match.type";
 
 export async function getMatch(matchId: number) {
@@ -17,6 +20,36 @@ export async function getMatch(matchId: number) {
   return res.data;
 }
 
+function deDuplicateListeners(notifications: Notification[]): Notification[] {
+  const deduplicatedNotifications = {};
+
+  notifications.forEach((notification) => {
+    const { user, channel, targetType, type } = notification;
+
+    const key = targetType === "user" ? user.toString() : channel.toString();
+
+    if (!deduplicatedNotifications[key]) {
+      deduplicatedNotifications[key] = { ...notification };
+    } else {
+      if (type === "club" && deduplicatedNotifications[key].type !== "club") {
+        deduplicatedNotifications[key] = notification;
+      } else if (
+        type === "club" &&
+        deduplicatedNotifications[key].type === "club"
+      ) {
+        const mergedSettings: NotificationSetting = {};
+        for (const setting in notification.notificationSetting) {
+          mergedSettings[setting] =
+            deduplicatedNotifications[key].notificationSetting[setting] ||
+            notification.notificationSetting[setting];
+        }
+        deduplicatedNotifications[key].notificationSetting = mergedSettings;
+      }
+    }
+  });
+
+  return Object.values(deduplicatedNotifications);
+}
 export async function getListeners(
   homeId: number,
   awayId: number,
@@ -44,7 +77,7 @@ export async function getListeners(
     return isUnique;
   });
 
-  return listenersRes;
+  return deDuplicateListeners(listenersRes);
 }
 
 export async function updateEvents(
