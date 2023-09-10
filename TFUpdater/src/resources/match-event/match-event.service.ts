@@ -9,6 +9,7 @@ import {
   NotificationSetting,
 } from "../../response-types/subscription.type";
 import { MatchData } from "../../response-types/match.type";
+import { Document, Types } from "mongoose";
 
 export async function getMatch(matchId: number) {
   const res = await axios.get(`${config.baseUrl}/matches/${matchId}`);
@@ -50,6 +51,7 @@ function deDuplicateListeners(notifications: Notification[]): Notification[] {
 
   return Object.values(deduplicatedNotifications);
 }
+
 export async function getListeners(
   homeId: number,
   awayId: number,
@@ -75,12 +77,20 @@ export async function getListeners(
 
 export async function updateEvents(
   match: MatchData,
-  prevMatchData: IMatch,
+  prevMatchData: Document<unknown, any, IMatchEvent> &
+    Omit<
+      IMatchEvent & {
+        _id: Types.ObjectId;
+      },
+      never
+    >,
   users: Notification[]
 ) {
   try {
     const { events: preEvents } = prevMatchData || { events: [] };
     const { teams, events } = match || { events: [] };
+
+    if (preEvents.length - events.length > 1) return;
     let homeScore = 0;
     let awayScore = 0;
     let homePenalty = 0;
@@ -158,12 +168,21 @@ export async function updateEvents(
         );
       }
     }
+
+    await prevMatchData.update({ events: match.events });
   } catch (err) {
     console.error("error occured while updating events", err);
   }
 }
 
 export async function updateLineups(
+  prevMatch: Document<unknown, any, IMatchEvent> &
+    Omit<
+      IMatchEvent & {
+        _id: Types.ObjectId;
+      },
+      never
+    >,
   lineups: ILineup[],
   prevLineups: ILineup[],
   users: Notification[],
@@ -181,13 +200,20 @@ export async function updateLineups(
         users
       );
     }
+    await prevMatch.update({ lineups });
   } catch (err) {
     console.error("error occured updating lineups", err);
   }
 }
 
 export async function updateBreaks(
-  prevMatch: IMatch,
+  prevMatch: Document<unknown, any, IMatchEvent> &
+    Omit<
+      IMatchEvent & {
+        _id: Types.ObjectId;
+      },
+      never
+    >,
   match: MatchData,
   users: Notification[]
 ) {
@@ -214,6 +240,7 @@ export async function updateBreaks(
         users
       );
     }
+    await prevMatch.update({ status: matchStatus });
   } catch (err) {
     console.error("error occured while updaiting breaks", err);
   }
@@ -221,7 +248,11 @@ export async function updateBreaks(
 
 export async function updateMatch(matchId: number) {
   try {
-    let prevMatch: IMatch = await MatchEvent.findOne({ matchId: matchId });
+    let prevMatch = await MatchEvent.findOneAndUpdate(
+      { matchId },
+      { matchId },
+      { upsert: true }
+    );
     if (prevMatch && isMatchOver(prevMatch.status)) {
       return;
     }
@@ -238,19 +269,14 @@ export async function updateMatch(matchId: number) {
       match.fixture.id
     );
 
-    await MatchEvent.findOneAndUpdate(
-      { matchId: matchId },
-      {
-        matchId: match.fixture.id,
-        status: match.fixture.status?.short,
-        events: match.events,
-        lineups: match.lineups,
-        teams: match.teams,
-      },
-      { upsert: true }
-    );
     await updateEvents(match, prevMatch, users);
-    await updateLineups(match?.lineups, prevMatch?.lineups, users, matchId);
+    await updateLineups(
+      prevMatch,
+      match?.lineups,
+      prevMatch?.lineups,
+      users,
+      matchId
+    );
     await updateBreaks(prevMatch, match, users);
   } catch (err) {
     console.error(err.message);
