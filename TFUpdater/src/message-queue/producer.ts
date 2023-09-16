@@ -3,8 +3,13 @@ import { Notification } from "../response-types/subscription.type";
 import { channelPool } from "./channelPool";
 
 async function sendMessage(channel: Channel, user: Notification, message) {
+  const messages = new Set();
   try {
-    console.log("sending message");
+    const key = `${user._id}-${message.matchId}-${message.data.id}`;
+    if (messages.has(key)) {
+      console.log("you are sending duplicate brooo", key);
+    }
+    messages.add(key);
     const routingKey = user.targetType;
     const userMessage = { message, user };
     channel.publish(
