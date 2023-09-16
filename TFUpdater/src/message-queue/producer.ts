@@ -5,8 +5,8 @@ import { channelPool } from "./channelPool";
 async function sendMessage(channel: Channel, user: Notification, message) {
   const messages = new Set();
   try {
-    const key = `${user._id}-${message.matchId}-${message.data.id}`;
-    if (messages.has(key)) {
+    const key = `${user._id}-${message.matchId}-${message.data.id}-${message.action}`;
+    if (messages.has(key) && message.action === "post") {
       console.log("you are sending duplicate brooo", key);
     }
     messages.add(key);
