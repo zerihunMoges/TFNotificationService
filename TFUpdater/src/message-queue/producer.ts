@@ -9,6 +9,7 @@ async function sendMessage(channel: Channel, user: Notification, message) {
     if (messages.has(key) && message.action === "post") {
       console.log("you are sending duplicate brooo", key);
     }
+    console.log("sending update", key);
     messages.add(key);
     const routingKey = user.targetType;
     const userMessage = { message, user };
