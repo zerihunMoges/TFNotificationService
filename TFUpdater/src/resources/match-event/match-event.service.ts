@@ -251,7 +251,7 @@ export async function updateMatch(matchId: number) {
     let prevMatch = await MatchEvent.findOneAndUpdate(
       { matchId },
       { matchId },
-      { upsert: true }
+      { upsert: true, new: true }
     );
     if (prevMatch && isMatchOver(prevMatch.status)) {
       return;
