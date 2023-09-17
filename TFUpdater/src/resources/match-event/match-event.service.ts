@@ -169,7 +169,7 @@ export async function updateEvents(
       }
     }
 
-    await prevMatchData.update({ events: match.events });
+    await prevMatchData.updateOne({ events: match.events });
   } catch (err) {
     console.error("error occured while updating events", err);
   }
@@ -200,7 +200,7 @@ export async function updateLineups(
         users
       );
     }
-    await prevMatch.update({ lineups });
+    await prevMatch.updateOne({ lineups });
   } catch (err) {
     console.error("error occured updating lineups", err);
   }
@@ -240,7 +240,7 @@ export async function updateBreaks(
         users
       );
     }
-    await prevMatch.update({ status: matchStatus });
+    await prevMatch.updateOne({ status: matchStatus });
   } catch (err) {
     console.error("error occured while updaiting breaks", err);
   }
