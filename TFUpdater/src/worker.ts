@@ -83,7 +83,7 @@ export async function startWorker(matches: MatchData[], subscriptions) {
       }
     }
 
-    await Promise.all(promisesArray);
+    await Promise.allSettled(promisesArray);
   } catch (err) {
     console.error("Error occurred in worker:", err);
   }
@@ -97,6 +97,8 @@ export async function scheduleWorker(updateSeconds: number = 60) {
     //the next worker call should be on update time
     let startTime = new Date();
     let updateTime = new Date();
+
+    console.log("started ", startTime);
     updateTime.setSeconds(
       startTime.getSeconds() + getExpireSeconds(startTime, updateSeconds)
     );
