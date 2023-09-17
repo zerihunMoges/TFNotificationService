@@ -123,7 +123,7 @@ export async function scheduleWorker(updateSeconds: number = 60) {
     const timeout =
       currentTime >= updateTime
         ? 0
-        : currentTime.getSeconds() - updateTime.getSeconds();
+        : updateTime.getSeconds() - currentTime.getSeconds();
 
     // Wait for the specified time before the next call
     await new Promise((resolve) => setTimeout(resolve, timeout * 1000));
